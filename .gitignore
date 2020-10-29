@@ -1,0 +1,5 @@
+*~
+cppzmq-*
+build
+.lock-waf*
+*.tar.gz
