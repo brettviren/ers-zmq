@@ -8,6 +8,7 @@
 
 #include "util.hpp"
 
+namespace ez {
 /** Stream ERS issues by sending from a ZeroMQ socket
  * 
  * Configure as:
@@ -16,18 +17,21 @@
  *
  * The <spec> is described elsewhere
  */
-class EZOut : public ers::OutputStream
+class Out : public ers::OutputStream
 {
     zmq::context_t ctx;
     ez::socket_set_t socks;
 
   public:
-    explicit EZOut( const std::string& spec) {
+    explicit Out( const std::string& spec) {
+        if (spec.empty()) {
+            throw ers::NoValue(ERS_HERE, "spec");
+        }
         auto links = ez::parse(spec, true);
         ez::create(ctx, links, socks);
     }
 
-    virtual ~EZOut() {
+    virtual ~Out() {
         // sockets and context should take care of themselves.
     }
 
@@ -39,3 +43,6 @@ class EZOut : public ers::OutputStream
     }
 
 };
+}
+
+ERS_REGISTER_OUTPUT_STREAM( ez::Out, "ezout", spec )

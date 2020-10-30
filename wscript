@@ -72,6 +72,8 @@ def configure(cfg):
     cfg.check_cfg(package='libzmq', uselib_store='ZMQ',
                   mandatory=True, args='--cflags --libs')
 
+    cfg.check(features='cxx cxxprogram', lib=['pthread'],
+              uselib_store='PTHREAD')
 
 def build(bld):
 
@@ -96,5 +98,26 @@ def build(bld):
               source=sources, target='ers-zmq',
               uselib_store='ERS_ZMQ', use=use)
 
-    bld.add_post_fun(waf_unit_test.summary)
+    tsources = bld.path.ant_glob('test/test*.cpp')
+    if tsources and not bld.options.no_tests:
+        # fixme: it would be nice to have an option that builds but doesn't run
+        features = 'test cxx'
+        if bld.options.quell_tests:
+            features = 'cxx'
 
+        for tmain in tsources:
+            uses = use + ['PTHREAD']
+            includes = ['test']
+            if tmain.name.startswith("test_ez_"):  # depends on ez internals
+                uses.insert(0, "ers-zmq")
+                includes.append('src')
+
+            bld.program(features=features,
+                        source=[tmain], target=tmain.name.replace('.cpp', ''),
+                        ut_cwd=bld.path,
+                        install_path=None,
+                        includes=includes,
+                        #rpath=rpath,
+                        use=uses)
+
+    bld.add_post_fun(waf_unit_test.summary)

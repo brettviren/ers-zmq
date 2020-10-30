@@ -1,7 +1,114 @@
 #+title: ERS-ZMQ
+#+author: Brett Viren
+#+EXPORT_FILE_NAME: index.html
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/setup/theme-readtheorg.setup
+#+HTML_HEAD: <style> #content{max-width:1800px;}</style>
+#+HTML_HEAD: <style> p{max-width:800px;}</style>
+#+HTML_HEAD: <style> li{max-width:800px;}</style>
+#+OPTIONS:   H:4 num:nil toc:2
 
 This provides an ERS plugin which will send ERS Issues over ZeroMQ
 streams.
 
 It is still a work in progress.
 
+* Install
+
+This requires libzmq 4.3.3 or newer and with draft features
+(~--enable-draft~ option to configure).  With [[https://dune-daq.github.io/dunedaq-spack/][DUNE DAQ Spack]], ~spack
+install libzmq@4.3.3+draft~ will do.  
+
+To install the ERS-ZMQ plugin one may do:
+
+#+begin_example
+  $ waf --prefix=/path/to/install configure 
+  $ waf
+  $ waf install
+#+end_example
+
+If the automatic location fails, dependencies can be given with
+~--with-*~ flags.  See ~waf --help~.
+
+* Running
+
+ERS-ZMQ is an ERS plugin.  It is meant to run with some existing
+application that uses ERS and with no compilation.  ERS finds its
+plugins using two environment variables:
+
+#+begin_example
+export TDAQ_ERS_STREAM_LIBS=ers-zmq
+export LD_LIBRARY_FLAGS=/path/to/install/lib:$LD_LIBRARY_FLAGS
+#+end_example
+
+ERS plugins are activated by another environment variable.  For
+example:
+
+#+begin_example
+export TDAQ_ERS_INFO="lstderr,ezout(<spec>)"
+#+end_example
+
+Where ~<spec>~ is an ERS-ZMQ specification described in the next
+section.
+
+* Configuring
+
+ERS-ZMQ provides an ERS output stream called ~ezout~ and an input stream
+called ~ezin~ (fixme: tbd).  Both require a specification describing how
+one or more the ZeroMQ sockets should be configured.  It is up to the
+user to assure that all endpoints are consistently configured.
+
+The ~<spec>~ is a very flexible micro-language to specify ZeroMQ
+sockets.  It is a comma, space or newline separated list of URLs or
+file names.  The URL is any ZeroMQ URL with an extension to specify
+query parameters.  A named file may contain a ~<spec>~.  Note, this is
+may be recursive so that one file may include an element of a spec
+that names other files.
+
+The URL query parameter extension to the ZeroMQ address URLs supports
+these parameters:
+
+- type :: the ZeroMQ socket type as a case-insensitive string (eg, "pub" or "pull").  By default a sender will use PUB and a receiver will use SUB.
+- borc :: whether the socket should ~bind()~ or ~connect()~ to the associated address.  By default a sender will "bind" and a receiver will "connect".
+- name :: a string identifier that collects multiple addresses to the same socket.  By default it is an empty string.
+- fmt :: the message format (fixme: for now just JSON, soon MessagePack).
+- topic :: a prefix match for a subscription topic applicable if *type* is "sub" (fixme: not yet implemented, default empty topic is subscribed) 
+
+Examples
+
+#+begin_example
+tcp://127.0.0.1:12345/?borc=connect&type=push&name=logz,ipc://fooo.fifo/?name=logz
+tcp://127.0.0.1:12346/?borc=bind&type=pub&name=broadcast
+yet-more-specs.txt
+probably-example-is-getting-excessive.txt
+#+end_example
+
+* Testing
+
+** ERS to ZeroMQ
+
+In one terminal run a test app that generates ERS Issues
+
+#+begin_example
+  $ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/build
+  $ export DAQ_ERS_STREAM_LIBS=ers-zmq 
+  $ export TDAQ_ERS_INFO="lstderr,ezout(tcp://127.0.0.1:12345/)"
+  $ ./build/test_send
+#+end_example
+
+In another terminal run a generic ZeroMQ (non-ERS) app to catch Issue messages:
+
+#+begin_example
+  $ ./build/test_ez_recv tcp://127.0.0.1:12345 10
+#+end_example
+
+** ERS to ERS
+
+It is possible to link an ~ezout~ to an ~ezin~.
+
+t.b.d.
+
+** ZeroMQ to ERS
+
+It is possible to inject messages from arbitrary ZeroMQ application to an ~ezin~.
+
+t.b.d.

@@ -9,6 +9,7 @@
 #include <string>
 #include <regex>
 #include <fstream>
+#include <iostream>             // durring dev
 
 using namespace ez;
 
@@ -51,7 +52,7 @@ std::string ez::get(const queries_t& qps, const std::string& key,
                     const std::string& def)
 {
     const auto itr = qps.find(key);
-    if (itr != qps.end()) {
+    if (itr == qps.end()) {
         return def;
     }
     return itr->second;
@@ -66,7 +67,7 @@ std::vector<std::string> ez::load_spec(const std::string& spec)
         std::sregex_token_iterator{});
 
     for (const auto& one : parts) {
-        if (one.find(":") == one.npos) { // a URL
+        if (one.find_first_of(":") != one.npos) { // a URL
             urls.push_back(one);
             continue;
         }
@@ -157,10 +158,19 @@ void ez::create(zmq::context_t& ctx, const linkmap_t& links,
                       std::forward_as_tuple(spec.ident),
                       std::forward_as_tuple(ctx, spec.type));
         zmq::socket_t& sock = socks[spec.ident];
+
+        // fixme: add query parameter to provide a subscription prefix
+        if (spec.ztype() == zmq::socket_type::sub) {
+            sock.set(zmq::sockopt::subscribe, "");
+        }
+
+        std::cerr << "socket " << link.first << " is a " << spec.type << std::endl;
         for (const auto& one : spec.binds) {
+            std::cerr << "bind " << link.first << " to " << one << std::endl;
             sock.bind(one);
         }
         for (const auto& one : spec.conns) {
+            std::cerr << "connect " << link.first << " to " << one << std::endl;
             sock.connect(one);
         }
     }
